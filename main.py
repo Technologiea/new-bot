@@ -60,7 +60,7 @@ def run_flask():
 
 threading.Thread(target=run_flask).start()
 
-TOKEN = '7774262573:AAFrdmqRzSSnUF7jEtSreqMVLdLMYbC3Oko'
+TOKEN = '7774262573:AAFmsQ9OMnvtty0jNVGR3S7jixrRuSkKPqk'
 bot = telebot.TeleBot(TOKEN)
 CHAT_ID = -1002889312280  # Confirmed supergroup ID
 IMAGE_PATH = '1.jpg'
