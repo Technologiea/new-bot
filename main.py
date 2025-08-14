@@ -67,6 +67,8 @@ bot = telebot.TeleBot(TOKEN)
 CHAT_ID = int(os.environ.get('CHAT_ID', '-1002889312280'))
 AFF_LINK_BASE = os.environ.get('AFF_LINK_BASE', 'https://1wvlau.life/?open=register&p=koqg&sub1=')
 IMAGE_PATH = '1.jpg'
+REG_IMAGE_PATH = '2win.jpg'  # New image for registration
+DEPOSIT_VIDEO_PATH = 'Deposit.mp4'  # New video for deposit
 PROMO_CODE = os.environ.get('PROMO_CODE', 'BETWIN190')
 USERS_FILE = os.environ.get('USERS_FILE', 'users.json')
 users = {}
@@ -155,7 +157,8 @@ def handle_register(message):
     reg_link = AFF_LINK_BASE + user_id
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("🎁 Register Now", url=reg_link))
-    bot.send_message(message.chat.id, f"📝 Get started! 🎁 Use promo code: <b>{PROMO_CODE}</b>\n❗️ If you see an old account, log out and click 'Register Now' again. ⏳ Then, hit '✅ CHECK REGISTRATION'! 🌟", parse_mode='HTML', reply_markup=markup)
+    with open(REG_IMAGE_PATH, 'rb') as photo:
+        bot.send_photo(message.chat.id, photo, caption=f"📝 Get started! 🎁 Use promo code: <b>{PROMO_CODE}</b>\n❗️ If you see an old account, log out and click 'Register Now' again. ⏳ Then, hit '✅ CHECK REGISTRATION'! 🌟", parse_mode='HTML', reply_markup=markup)
     markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     markup.add(telebot.types.KeyboardButton('✅ CHECK REGISTRATION'))
     bot.send_message(message.chat.id, "Ready to win? Check your status! 🚀", reply_markup=markup)
@@ -183,7 +186,8 @@ def handle_deposit(message):
     load_users()
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("🌐 Deposit Now", url=AFF_LINK_BASE + user_id))
-    bot.send_message(message.chat.id, "💰 Confirm you’re human with any top-up!\n🔸 Activate your account with your first deposit—funds credited to play and WIN! 🌟\n● After depositing, click: «🔍 CHECK DEPOSIT» ⏳")
+    with open(DEPOSIT_VIDEO_PATH, 'rb') as video:
+        bot.send_video(message.chat.id, video, caption="💰 Confirm you’re human with any top-up!\n🔸 Activate your account with your first deposit—funds credited to play and WIN! 🌟\n● After depositing, click: «🔍 CHECK DEPOSIT» ⏳")
     markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     markup.add(telebot.types.KeyboardButton('🔍 CHECK DEPOSIT'))
     bot.send_message(message.chat.id, "Fund your account! 🚀", reply_markup=markup)
