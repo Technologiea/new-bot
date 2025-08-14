@@ -15,7 +15,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "I'm alive"
+    return "Bot is operational and ready"
 
 @app.route('/postback', methods=['GET', 'POST'])
 def postback():
@@ -40,7 +40,7 @@ def postback():
             
             save_users()
         except Exception as e:
-            print(f"Postback error: {e}")
+            print(f"Postback processing error: {e}")
     return 'OK', 200
 
 def run_flask():
@@ -49,16 +49,20 @@ def run_flask():
 
 threading.Thread(target=run_flask).start()
 
-# Configuration
-TOKEN = os.environ.get('TOKEN')
-bot = telebot.TeleBot(TOKEN)
-CHAT_ID = int(os.environ.get('CHAT_ID'))
-AFF_LINK_BASE = os.environ.get('AFF_LINK_BASE')
-IMAGE_PATH = '1.jpg'
-REG_IMAGE_PATH = '2win.jpg'
+# Configuration from environment variables
+TOKEN = os.environ['TOKEN']
+CHAT_ID = int(os.environ['CHAT_ID'])
+AFF_LINK_BASE = os.environ['AFF_LINK_BASE']
 PROMO_CODE = os.environ.get('PROMO_CODE', 'BETWIN190')
 USERS_FILE = os.environ.get('USERS_FILE', 'users.json')
+
+# Initialize bot
+bot = telebot.TeleBot(TOKEN)
 users = {}
+
+# Image paths
+IMAGE_PATH = '1.jpg'
+REG_IMAGE_PATH = '2win.jpg'
 
 def load_users():
     global users
@@ -67,10 +71,8 @@ def load_users():
             with open(USERS_FILE, 'r') as f:
                 users = json.load(f)
                 users = {str(k): v for k, v in users.items()}
-        else:
-            users = {}
     except Exception as e:
-        print(f"Error loading users: {e}")
+        print(f"User data load error: {e}")
         users = {}
 
 def save_users():
@@ -78,13 +80,10 @@ def save_users():
         with open(USERS_FILE, 'w') as f:
             json.dump(users, f)
     except Exception as e:
-        print(f"Error saving users: {e}")
+        print(f"User data save error: {e}")
 
 def generate_crash_multiplier():
-    if random.random() <= 0.8:
-        return round(random.uniform(1.3, 2.5), 2)
-    else:
-        return round(random.uniform(2.5, 4.0), 2)
+    return round(random.uniform(1.3, 4.0), 2) if random.random() > 0.8 else round(random.uniform(1.3, 2.5), 2)
 
 def generate_mines_signal():
     num_mines = random.randint(1, 5)
@@ -96,14 +95,11 @@ def generate_mines_signal():
 
 def send_feedback(multiplier, game):
     try:
-        if game == 'aviator':
-            bot.send_message(CHAT_ID, f"✅ GREEN ({multiplier}x)")
-        else:
-            bot.send_message(CHAT_ID, f"✅ GREEN ({multiplier}x)")
+        bot.send_message(CHAT_ID, f"✅ GREEN ({multiplier}x)")
     except Exception as e:
-        print(f"Error sending feedback: {e}")
+        print(f"Feedback error: {e}")
 
-# ============== ENHANCED UI WITH INLINE KEYBOARDS ==============
+# ============== ENHANCED UI WITH MESSAGE EDITING ==============
 
 def main_menu_keyboard():
     markup = InlineKeyboardMarkup(row_width=2)
@@ -115,11 +111,15 @@ def main_menu_keyboard():
     )
     return markup
 
+def back_to_menu_keyboard():
+    return InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Main Menu", callback_data="menu"))
+
 @bot.message_handler(commands=['start'])
 def start(message):
     user = message.from_user
     user_id = str(user.id)
     load_users()
+    
     if user_id not in users:
         users[user_id] = {'registered': False, 'deposited': False}
         save_users()
@@ -132,7 +132,7 @@ def start(message):
         "👥 Trusted by thousands\n"
         "🧠 Data-backed signals\n"
         "🛡️ Free after quick sign-up & deposit\n\n"
-        "📲 Tap below to start your journey and unlock premium signals! 🌈"
+        "📲 Choose your next step below 👇"
     )
     
     with open(IMAGE_PATH, 'rb') as photo:
@@ -149,65 +149,82 @@ def handle_callback(call):
     user_id = str(call.from_user.id)
     load_users()
     
-    if call.data == "register":
-        handle_register(call.message, user_id)
-    elif call.data == "check_reg":
-        check_registered(call.message, user_id)
-    elif call.data == "deposit":
-        handle_deposit(call.message, user_id)
-    elif call.data == "check_dep":
-        check_deposited(call.message, user_id)
-    elif call.data == "aviator":
-        aviator_signal(call.message, user_id)
-    elif call.data == "mines":
-        mines_signal(call.message, user_id)
-    elif call.data == "menu":
-        bot.edit_message_reply_markup(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            reply_markup=main_menu_keyboard()
-        )
+    try:
+        if call.data == "menu":
+            bot.edit_message_caption(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                caption="🌟 Main Menu: Choose your next step 👇",
+                parse_mode='HTML',
+                reply_markup=main_menu_keyboard()
+            )
+        elif call.data == "register":
+            handle_register(call)
+        elif call.data == "check_reg":
+            check_registered(call)
+        elif call.data == "deposit":
+            handle_deposit(call)
+        elif call.data == "check_dep":
+            check_deposited(call)
+        elif call.data == "aviator":
+            aviator_signal(call)
+        elif call.data == "mines":
+            mines_signal(call)
+    except Exception as e:
+        print(f"Callback error: {e}")
+        bot.answer_callback_query(call.id, "⚠️ Please use the /start command to refresh")
 
-def handle_register(message, user_id):
+def handle_register(call):
+    user_id = str(call.from_user.id)
     reg_link = AFF_LINK_BASE + user_id
-    markup = InlineKeyboardMarkup()
-    markup.add(
-        InlineKeyboardButton("🎁 Register Now", url=reg_link),
-        InlineKeyboardButton("✅ CHECK REGISTRATION", callback_data="check_reg"),
-        InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
-    )
     
     reg_msg = (
         "📝 Let's get started!\n\n"
         f"🎁 Use promo code: <b>{PROMO_CODE}</b>\n"
         "❗️ If you see an old account, logout and click 'Register Now' again.\n\n"
-        "⏳ After registering, tap '✅ CHECK REGISTRATION'.\n\n"
-        "Ready to win? 🚀"
+        "⏳ After registering, tap '✅ CHECK REGISTRATION' below."
     )
     
-    with open(REG_IMAGE_PATH, 'rb') as photo:
-        bot.send_photo(
-            message.chat.id, 
-            photo, 
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("🎁 Register Now", url=reg_link),
+        InlineKeyboardButton("✅ CHECK REGISTRATION", callback_data="check_reg")
+    )
+    markup.row(InlineKeyboardButton("🔙 Main Menu", callback_data="menu"))
+    
+    if call.message.photo:
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
             caption=reg_msg,
             parse_mode='HTML',
             reply_markup=markup
         )
+    else:
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=reg_msg,
+            parse_mode='HTML',
+            reply_markup=markup
+        )
 
-def check_registered(message, user_id):
+def check_registered(call):
+    user_id = str(call.from_user.id)
+    
     if users.get(user_id, {}).get('registered', False):
         success_msg = (
             "🎉 You've successfully registered! 🌟\n\n"
             "💰 Now, deposit to unlock full access & start winning!"
         )
         markup = InlineKeyboardMarkup()
-        markup.add(
-            InlineKeyboardButton("💰 DEPOSIT NOW", callback_data="deposit"),
-            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
-        )
-        bot.send_message(
-            message.chat.id, 
-            success_msg, 
+        markup.add(InlineKeyboardButton("💰 DEPOSIT NOW", callback_data="deposit"))
+        markup.row(InlineKeyboardButton("🔙 Main Menu", callback_data="menu"))
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=success_msg,
             parse_mode='HTML',
             reply_markup=markup
         )
@@ -218,60 +235,77 @@ def check_registered(message, user_id):
             "1. Used the registration link\n"
             "2. Completed the sign-up\n"
             "3. Waited 2-3 minutes\n\n"
-            "🔄 Then, tap '✅ CHECK REGISTRATION' again."
+            "🔄 Then check again using the button below"
         )
         markup = InlineKeyboardMarkup()
-        markup.add(
-            InlineKeyboardButton("✅ CHECK REGISTRATION", callback_data="check_reg"),
-            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
-        )
-        bot.send_message(
-            message.chat.id, 
-            error_msg, 
+        markup.add(InlineKeyboardButton("🔄 CHECK AGAIN", callback_data="check_reg"))
+        markup.row(InlineKeyboardButton("🔙 Main Menu", callback_data="menu"))
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
             parse_mode='HTML',
             reply_markup=markup
         )
 
-def handle_deposit(message, user_id):
+def handle_deposit(call):
+    user_id = str(call.from_user.id)
+    
     if not users.get(user_id, {}).get('registered', False):
-        bot.send_message(
-            message.chat.id,
-            "❌ You need to register first. 📌",
-            reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📌 REGISTER NOW", callback_data="register")
-            )
+        error_msg = "❌ You need to register first. 📌"
+        markup = InlineKeyboardMarkup().add(
+            InlineKeyboardButton("📌 REGISTER NOW", callback_data="register"),
+            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
+        )
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
+            parse_mode='HTML',
+            reply_markup=markup
         )
         return
         
     dep_link = AFF_LINK_BASE + user_id
-    markup = InlineKeyboardMarkup()
-    markup.add(
-        InlineKeyboardButton("💸 Deposit Now", url=dep_link),
-        InlineKeyboardButton("🔍 CHECK DEPOSIT", callback_data="check_dep"),
-        InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
-    )
-    
     dep_msg = (
         "💸 Ready to play? Deposit now to activate your account!\n\n"
         "🔹 Funds will be credited for play & wins.\n"
-        "⏳ After depositing, tap '🔍 CHECK DEPOSIT'!"
+        "⏳ After depositing, tap '🔍 CHECK DEPOSIT' below."
     )
     
-    bot.send_message(
-        message.chat.id, 
-        dep_msg, 
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("💸 Deposit Now", url=dep_link),
+        InlineKeyboardButton("🔍 CHECK DEPOSIT", callback_data="check_dep")
+    )
+    markup.row(InlineKeyboardButton("🔙 Main Menu", callback_data="menu"))
+    
+    bot.edit_message_caption(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        caption=dep_msg,
         parse_mode='HTML',
         reply_markup=markup
     )
 
-def check_deposited(message, user_id):
+def check_deposited(call):
+    user_id = str(call.from_user.id)
+    
     if not users.get(user_id, {}).get('registered', False):
-        bot.send_message(
-            message.chat.id,
-            "❌ You need to register first. 📌",
-            reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📌 REGISTER NOW", callback_data="register")
-            )
+        error_msg = "❌ You need to register first. 📌"
+        markup = InlineKeyboardMarkup().add(
+            InlineKeyboardButton("📌 REGISTER NOW", callback_data="register"),
+            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
+        )
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
+            parse_mode='HTML',
+            reply_markup=markup
         )
         return
         
@@ -280,12 +314,14 @@ def check_deposited(message, user_id):
         markup = InlineKeyboardMarkup(row_width=2)
         markup.add(
             InlineKeyboardButton("🎮 AVIATOR SIGNALS", callback_data="aviator"),
-            InlineKeyboardButton("💎 MINES SIGNALS", callback_data="mines"),
-            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
+            InlineKeyboardButton("💎 MINES SIGNALS", callback_data="mines")
         )
-        bot.send_message(
-            message.chat.id, 
-            success_msg, 
+        markup.row(InlineKeyboardButton("🔙 Main Menu", callback_data="menu"))
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=success_msg,
             parse_mode='HTML',
             reply_markup=markup
         )
@@ -293,30 +329,38 @@ def check_deposited(message, user_id):
         error_msg = (
             "❌ Deposit not detected yet.\n\n"
             "⏳ Please wait 2-3 minutes after funding your account.\n"
-            "Then tap '🔍 CHECK DEPOSIT' again."
+            "Then check again using the button below"
         )
         markup = InlineKeyboardMarkup()
-        markup.add(
-            InlineKeyboardButton("🔍 CHECK DEPOSIT", callback_data="check_dep"),
-            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
-        )
-        bot.send_message(
-            message.chat.id, 
-            error_msg, 
+        markup.add(InlineKeyboardButton("🔄 CHECK AGAIN", callback_data="check_dep"))
+        markup.row(InlineKeyboardButton("🔙 Main Menu", callback_data="menu"))
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
             parse_mode='HTML',
             reply_markup=markup
         )
 
-def aviator_signal(message, user_id):
+def aviator_signal(call):
+    user_id = str(call.from_user.id)
+    
     if not (users.get(user_id, {}).get('registered', False) and 
            users.get(user_id, {}).get('deposited', False)):
-        bot.send_message(
-            message.chat.id,
-            "❌ Complete registration and deposit first!",
-            reply_markup=InlineKeyboardMarkup(row_width=2).add(
-                InlineKeyboardButton("📌 REGISTER", callback_data="register"),
-                InlineKeyboardButton("💰 DEPOSIT", callback_data="deposit")
-            )
+        error_msg = "❌ Complete registration and deposit first!"
+        markup = InlineKeyboardMarkup(row_width=2).add(
+            InlineKeyboardButton("📌 REGISTER", callback_data="register"),
+            InlineKeyboardButton("💰 DEPOSIT", callback_data="deposit"),
+            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
+        )
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
+            parse_mode='HTML',
+            reply_markup=markup
         )
         return
         
@@ -329,7 +373,7 @@ def aviator_signal(message, user_id):
             f"👉 Enter after {previous_multiplier}x\n"
             f"💰 Exit at {current_multiplier}x\n\n"
             "🛡️ Up to 2 protections\n"
-            f"💸 Platform: [1win](https://1wvlau.life/?open=register&p=koqg)"
+            f"💸 Platform: [1win]({AFF_LINK_BASE}{user_id})"
         )
         bot.send_message(
             CHAT_ID, 
@@ -337,27 +381,43 @@ def aviator_signal(message, user_id):
             parse_mode='Markdown'
         )
         threading.Timer(180, send_feedback, args=(current_multiplier, 'aviator')).start()
-        bot.send_message(
-            message.chat.id,
-            "✅ Signal sent to group! Check it now!",
-            reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
-            )
+        
+        success_msg = "✅ Signal sent to group! Check it now!"
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=success_msg,
+            parse_mode='HTML',
+            reply_markup=back_to_menu_keyboard()
         )
     except Exception as e:
-        print(f"Error sending Aviator signal: {e}")
-        bot.send_message(message.chat.id, f"❌ Signal failed: {e}")
+        error_msg = f"❌ Signal failed: {e}"
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
+            parse_mode='HTML',
+            reply_markup=back_to_menu_keyboard()
+        )
 
-def mines_signal(message, user_id):
+def mines_signal(call):
+    user_id = str(call.from_user.id)
+    
     if not (users.get(user_id, {}).get('registered', False) and 
            users.get(user_id, {}).get('deposited', False)):
-        bot.send_message(
-            message.chat.id,
-            "❌ Complete registration and deposit first!",
-            reply_markup=InlineKeyboardMarkup(row_width=2).add(
-                InlineKeyboardButton("📌 REGISTER", callback_data="register"),
-                InlineKeyboardButton("💰 DEPOSIT", callback_data="deposit")
-            )
+        error_msg = "❌ Complete registration and deposit first!"
+        markup = InlineKeyboardMarkup(row_width=2).add(
+            InlineKeyboardButton("📌 REGISTER", callback_data="register"),
+            InlineKeyboardButton("💰 DEPOSIT", callback_data="deposit"),
+            InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
+        )
+        
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
+            parse_mode='HTML',
+            reply_markup=markup
         )
         return
         
@@ -370,7 +430,7 @@ def mines_signal(message, user_id):
             f"Click Sequence: {pos_str}\n"
             f"💰 Cash out at {multiplier}x\n\n"
             "🛡️ Up to 2 protections\n"
-            f"💸 Platform: [1win](https://1wvlau.life/?open=register&p=koqg)"
+            f"💸 Platform: [1win]({AFF_LINK_BASE}{user_id})"
         )
         bot.send_message(
             CHAT_ID, 
@@ -378,37 +438,46 @@ def mines_signal(message, user_id):
             parse_mode='Markdown'
         )
         threading.Timer(150, send_feedback, args=(multiplier, 'mines')).start()
-        bot.send_message(
-            message.chat.id,
-            "✅ Signal sent to group! Check it now!",
-            reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
-            )
+        
+        success_msg = "✅ Signal sent to group! Check it now!"
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=success_msg,
+            parse_mode='HTML',
+            reply_markup=back_to_menu_keyboard()
         )
     except Exception as e:
-        print(f"Error sending Mines signal: {e}")
-        bot.send_message(message.chat.id, f"❌ Signal failed: {e}")
+        error_msg = f"❌ Signal failed: {e}"
+        bot.edit_message_caption(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            caption=error_msg,
+            parse_mode='HTML',
+            reply_markup=back_to_menu_keyboard()
+        )
 
 @bot.message_handler(func=lambda message: True)
 def handle_other_messages(message):
     user_id = str(message.from_user.id)
     load_users()
-    status = users.get(user_id, {'registered': False, 'deposited': False})
     
-    if not status.get('registered', False):
+    if not users.get(user_id, {}).get('registered', False):
         bot.send_message(
             message.chat.id,
             "📌 Please register first to get started 👇",
             reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📌 REGISTER NOW", callback_data="register")
+                InlineKeyboardButton("📌 REGISTER NOW", callback_data="register"),
+                InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
             )
         )
-    elif not status.get('deposited', False):
+    elif not users.get(user_id, {}).get('deposited', False):
         bot.send_message(
             message.chat.id,
             "💰 You're registered, but haven't deposited yet. Deposit now to unlock signals! 👇",
             reply_markup=InlineKeyboardMarkup().add(
-                InlineKeyboardButton("💰 DEPOSIT NOW", callback_data="deposit")
+                InlineKeyboardButton("💰 DEPOSIT NOW", callback_data="deposit"),
+                InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
             )
         )
     else:
@@ -417,7 +486,8 @@ def handle_other_messages(message):
             "🎮 You're all set! Choose a game to get your next signal! 👇",
             reply_markup=InlineKeyboardMarkup(row_width=2).add(
                 InlineKeyboardButton("🎮 AVIATOR", callback_data="aviator"),
-                InlineKeyboardButton("💎 MINES", callback_data="mines")
+                InlineKeyboardButton("💎 MINES", callback_data="mines"),
+                InlineKeyboardButton("🔙 Main Menu", callback_data="menu")
             )
         )
 
