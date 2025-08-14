@@ -43,6 +43,10 @@ def postback():
             elif event_lower in ['dep', 'deposit', 'first_deposit', 'payout'] and date:
                 users[user_id]['deposited'] = True
                 print(f"DEBUG: User {user_id} marked as deposited")
+            # Temporary fix for UUID-like status
+            elif (len(event_id) == 36 and '-' in event_id and date):  # Check if it's a UUID
+                users[user_id]['registered'] = True
+                print(f"DEBUG: User {user_id} marked as registered (UUID detected)")
             else:
                 print(f"DEBUG: Unknown event_id: {event_id}, no action taken")
             
@@ -66,8 +70,8 @@ bot = telebot.TeleBot(TOKEN)
 CHAT_ID = int(os.environ.get('CHAT_ID', '-1002889312280'))  # Convert to int for Telegram
 AFF_LINK_BASE = os.environ.get('AFF_LINK_BASE', 'https://1wvlau.life/?open=register&p=koqg&sub1=')  # Fallback to hardcoded value
 IMAGE_PATH = '1.jpg'
-PROMO_CODE = 'BETWIN190'
-USERS_FILE = 'users.json'
+PROMO_CODE = os.environ.get('PROMO_CODE', 'BETWIN190')
+USERS_FILE = os.environ.get('USERS_FILE', 'users.json')
 users = {}
 
 def load_users():
