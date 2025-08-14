@@ -62,7 +62,7 @@ def run_flask():
 threading.Thread(target=run_flask).start()
 
 # Use environment variables
-TOKEN = os.environ.get('TOKEN', '7774262573:AAFrdmqRzSSnUF7jEtSreqMVLdLMYbC3Oko')
+TOKEN = os.environ.get('TOKEN', '7774262573:AAFmsQ9OMnvtty0jNVGR3S7jixrRuSkKPqk')
 bot = telebot.TeleBot(TOKEN)
 CHAT_ID = int(os.environ.get('CHAT_ID', '-1002889312280'))
 AFF_LINK_BASE = os.environ.get('AFF_LINK_BASE', 'https://1wvlau.life/?open=register&p=koqg&sub1=')
@@ -199,7 +199,7 @@ def check_registered(message):
         bot.send_message(message.chat.id, "❌ Registration pending!\n"
                                          "Ensure you used the link,\n"
                                          "completed registration,\n"
-                                         "and waited 2-3 minutes\n"
+                                         "and waited 2-3 minutes.\n"
                                          "⏳")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('✅ CHECK REGISTRATION'))
@@ -246,7 +246,7 @@ def check_deposited(message):
                                          "🚀", reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "❌ Deposit pending!\n"
-                                         "Fund your account and wait 2-3 minutes\n"
+                                         "Fund your account and wait 2-3 minutes.\n"
                                          "⏳")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('🔍 CHECK DEPOSIT'))
