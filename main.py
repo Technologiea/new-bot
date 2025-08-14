@@ -60,11 +60,12 @@ def run_flask():
 
 threading.Thread(target=run_flask).start()
 
-TOKEN = '7774262573:AAFmsQ9OMnvtty0jNVGR3S7jixrRuSkKPqk'
+# Use environment variables
+TOKEN = os.environ.get('TOKEN', '7774262573:AAFmsQ9OMnvtty0jNVGR3S7jixrRuSkKPqk')  # Fallback to hardcoded value
 bot = telebot.TeleBot(TOKEN)
-CHAT_ID = -1002889312280  # Confirmed supergroup ID
+CHAT_ID = int(os.environ.get('CHAT_ID', '-1002889312280'))  # Convert to int for Telegram
+AFF_LINK_BASE = os.environ.get('AFF_LINK_BASE', 'https://1wvlau.life/?open=register&p=koqg&sub1=')  # Fallback to hardcoded value
 IMAGE_PATH = '1.jpg'
-AFF_LINK_BASE = 'https://1wvlau.life/?open=register&p=koqg&sub1='  # Updated based on your link
 PROMO_CODE = 'BETWIN190'
 USERS_FILE = 'users.json'
 users = {}
