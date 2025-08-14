@@ -130,15 +130,15 @@ def start(message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     markup.add(telebot.types.KeyboardButton('📌 REGISTER'))
     with open(IMAGE_PATH, 'rb') as photo:
-        bot.send_photo(message.chat.id, photo, caption=f"🎉 Hello @{user.username}! 🌟 Welcome to SureWin Signal Bot! 🚀 Boost your wins in 1win Aviator & Mines! ❤️ Let's get started!", parse_mode='HTML')
-    bot.send_message(message.chat.id, "Start your journey! 🎯 Click 📌 REGISTER! 🌈", reply_markup=markup)
+        bot.send_photo(message.chat.id, photo, caption=f"🎉 Hello, @{user.username}! 🌟 Welcome to SureWin Signal Bot! 🚀\nBoost your wins in 1win Aviator and Mines! ❤️", parse_mode='HTML')
+    bot.send_message(message.chat.id, "Start your winning journey! 🎯 Click below! 🌈", reply_markup=markup)
 
 @bot.message_handler(commands=['debug'])
 def debug_status(message):
     user_id = str(message.from_user.id)
     load_users()
     status = users.get(user_id, {'registered': False, 'deposited': False})
-    bot.send_message(message.chat.id, f"🛠 Debug: User {user_id} - Registered: {status['registered']} - Deposited: {status['deposited']}")
+    bot.send_message(message.chat.id, f"🛠 Debug: User {user_id} - Registered: {status['registered']}, Deposited: {status['deposited']}")
 
 @bot.message_handler(commands=['testgroup'])
 def test_group(message):
@@ -157,13 +157,10 @@ def handle_register(message):
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("🎁 Register Now", url=reg_link))
     with open(REG_IMAGE_PATH, 'rb') as photo:
-        bot.send_photo(message.chat.id, photo, caption=f"📝 Get started! 🎁 Use promo code: <b>{PROMO_CODE}</b>! ❗️ If old account, log out & click 🎁! ⏳ Then click ✅! 🌟", parse_mode='HTML', reply_markup=markup)
+        bot.send_photo(message.chat.id, photo, caption=f"📝 Get started! 🎁 Use promo code: <b>{PROMO_CODE}</b>\n❗️ If you see an old account, log out and click 'Register Now' again. ⏳ Then, hit '✅ CHECK REGISTRATION'! 🌟", parse_mode='HTML', reply_markup=markup)
     markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     markup.add(telebot.types.KeyboardButton('✅ CHECK REGISTRATION'))
-    bot.send_message(message.chat.id, "Ready to win? Click below!", reply_markup=markup)
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("✅ Check Registration", url=reg_link))
-    bot.send_message(message.chat.id, "Verify now! 🌟", reply_markup=markup)
+    bot.send_message(message.chat.id, "Ready to win? Check your status! 🚀", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == '✅ CHECK REGISTRATION')
 def check_registered(message):
@@ -172,21 +169,15 @@ def check_registered(message):
     print(f"DEBUG: Checking registration for user {user_id} at {time.strftime('%H:%M:%S', time.localtime())}: {users.get(user_id, {})}")
     
     if users.get(user_id, {}).get('registered', False):
-        bot.send_message(message.chat.id, "🎉 Registration complete! Woho! 🌟 Deposit to unlock fun! 💸")
+        bot.send_message(message.chat.id, "🎉 Registration complete! Woho! 🌟 Time to deposit and unlock the fun! 💸")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('💰 DEPOSIT'))
-        bot.send_message(message.chat.id, "Next step! Click below!", reply_markup=markup)
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("✅ Check Registration", url=reg_link))
-        bot.send_message(message.chat.id, "Confirm again! 🚀", reply_markup=markup)
+        bot.send_message(message.chat.id, "Deposit to play! 🚀", reply_markup=markup)
     else:
-        bot.send_message(message.chat.id, "❌ Registration pending! Use link, register, wait 2-3 mins! ⏳")
+        bot.send_message(message.chat.id, "❌ Registration pending! Ensure you used the link, completed registration, and waited 2-3 minutes ⏳")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('✅ CHECK REGISTRATION'))
-        bot.send_message(message.chat.id, "Try again! Click below!", reply_markup=markup)
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("✅ Check Registration", url=reg_link))
-        bot.send_message(message.chat.id, "Verify now! 🔄", reply_markup=markup)
+        bot.send_message(message.chat.id, "Try again! 🔄", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == '💰 DEPOSIT')
 def handle_deposit(message):
@@ -195,68 +186,57 @@ def handle_deposit(message):
     dep_link = AFF_LINK_BASE + user_id
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("🌐 Deposit Now", url=dep_link))
-    with open(REG_IMAGE_PATH, 'rb') as photo:  # Reusing registration image for consistency
-        bot.send_photo(message.chat.id, photo, caption=f"💰 Confirm with any top-up! 🔸 Activate account - funds to play & win! 🌟 After depositing, click 🔍! ⏳")
+    bot.send_message(message.chat.id, "💰 Confirm with any top-up! 🔸 Activate account - funds credited to play & win! 🌟 After depositing, click 🔍 CHECK DEPOSIT! ⏳")
     markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
     markup.add(telebot.types.KeyboardButton('🔍 CHECK DEPOSIT'))
-    bot.send_message(message.chat.id, "Fund your account! Click below!", reply_markup=markup)
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🔍 Check Deposit", url=dep_link))
-    bot.send_message(message.chat.id, "Check status! 🚀", reply_markup=markup)
+    bot.send_message(message.chat.id, "Fund your account! 🚀", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == '🔍 CHECK DEPOSIT')
 def check_deposited(message):
     user_id = str(message.from_user.id)
     load_users()
-    dep_link = AFF_LINK_BASE + user_id
     if not users.get(user_id, {}).get('registered', False):
         bot.send_message(message.chat.id, "❌ Register first! 📌")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('📌 REGISTER'))
-        bot.send_message(message.chat.id, "Start here! Click below!", reply_markup=markup)
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🔍 Check Deposit", url=dep_link))
-        bot.send_message(message.chat.id, "Check later! 🌟", reply_markup=markup)
+        bot.send_message(message.chat.id, "Start here! 🌟", reply_markup=markup)
     elif users.get(user_id, {}).get('deposited', False):
         bot.send_message(message.chat.id, "🎉 Deposit confirmed! Woho! 💸 Ready to play! 🌟")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.row(telebot.types.KeyboardButton('🎮 AVIATOR SIGNALS'), telebot.types.KeyboardButton('💎 MINES SIGNALS'))
-        bot.send_message(message.chat.id, "Choose your game! Click below!", reply_markup=markup)
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🔍 Check Deposit", url=dep_link))
-        bot.send_message(message.chat.id, "Confirm again! 🚀", reply_markup=markup)
+        bot.send_message(message.chat.id, "Choose your game! 🚀", reply_markup=markup)
     else:
-        bot.send_message(message.chat.id, "❌ Deposit pending! Fund & wait 2-3 mins! ⏳")
+        bot.send_message(message.chat.id, "❌ Deposit pending! Fund your account and wait 2-3 minutes ⏳")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('🔍 CHECK DEPOSIT'))
-        bot.send_message(message.chat.id, "Check again! Click below!", reply_markup=markup)
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🔍 Check Deposit", url=dep_link))
-        bot.send_message(message.chat.id, "Verify now! 🔄", reply_markup=markup)
+        bot.send_message(message.chat.id, "Check again! 🔄", reply_markup=markup)
 
 @bot.message_handler(func=lambda m: m.text == '🎮 AVIATOR SIGNALS')
 def aviator_signal(message):
     user_id = str(message.from_user.id)
     load_users()
     if not (users.get(user_id, {}).get('registered', False) and users.get(user_id, {}).get('deposited', False)):
-        bot.send_message(message.chat.id, "❌ Complete registration & deposit first! 📌💰")
+        bot.send_message(message.chat.id, "❌ Complete registration and deposit first! 📌💰")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('📌 REGISTER'), telebot.types.KeyboardButton('💰 DEPOSIT'))
-        bot.send_message(message.chat.id, "Get started! Click below!", reply_markup=markup)
+        bot.send_message(message.chat.id, "Get started! 🌟", reply_markup=markup)
         return
     previous_multiplier = round(random.uniform(1.0, 1.87), 2)
     current_multiplier = generate_crash_multiplier()
     full_message = (
-        f"🎯 Aviator Signal Ready! 🎮 Play: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>! "
-        f"👉 Enter after {previous_multiplier}x! 💰 Exit at {current_multiplier}x! 🛡️ Up to 2 protections! "
-        f"💸 Platform: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>!"
+        "🎯 Aviator Signal Ready! 🎮\n"
+        f"📱 Play: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>\n\n"
+        f"👉 Enter after {previous_multiplier}x\n"
+        f"💰 Exit at {current_multiplier}x\n\n"
+        "🛡️ Up to 2 protections\n"
+        f"💸 Platform: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>"
     )
     try:
         print(f"DEBUG: Sending Aviator signal to CHAT_ID {CHAT_ID}")
         with open(IMAGE_PATH, 'rb') as photo:
             bot.send_photo(CHAT_ID, photo, caption=full_message, parse_mode='HTML')
         threading.Timer(180, send_feedback, args=(current_multiplier, 'aviator')).start()
-        bot.send_message(message.chat.id, "Signal sent! 🎉 Check it! 🚀")
+        bot.send_message(message.chat.id, "Signal sent to group! 🎉 Check it! 🚀")
     except Exception as e:
         print(f"DEBUG: Error sending Aviator signal: {e}")
         bot.send_message(message.chat.id, f"❌ Signal failed: {e}")
@@ -266,23 +246,27 @@ def mines_signal(message):
     user_id = str(message.from_user.id)
     load_users()
     if not (users.get(user_id, {}).get('registered', False) and users.get(user_id, {}).get('deposited', False)):
-        bot.send_message(message.chat.id, "❌ Complete registration & deposit first! 📌💰")
+        bot.send_message(message.chat.id, "❌ Complete registration and deposit first! 📌💰")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('📌 REGISTER'), telebot.types.KeyboardButton('💰 DEPOSIT'))
-        bot.send_message(message.chat.id, "Get started! Click below!", reply_markup=markup)
+        bot.send_message(message.chat.id, "Get started! 🌟", reply_markup=markup)
         return
     num_mines, pos_str, multiplier = generate_mines_signal()
     full_message = (
-        f"🎯 Mines Signal Ready! 💎 Play: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>! "
-        f"Set Mines: {num_mines}! Click Sequence: {pos_str}! 💰 Cash out at {multiplier}x! 🛡️ Up to 2 protections! "
-        f"💸 Platform: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>!"
+        "🎯 Mines Signal Ready! 💎\n"
+        f"📱 Play: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>\n\n"
+        f"Set Mines: {num_mines}\n"
+        f"Click Sequence: {pos_str}\n"
+        f"💰 Cash out at {multiplier}x\n\n"
+        "🛡️ Up to 2 protections\n"
+        f"💸 Platform: <a href='https://1wvlau.life/?open=register&p=koqg'>Here</a>"
     )
     try:
         print(f"DEBUG: Sending Mines signal to CHAT_ID {CHAT_ID}")
         with open(IMAGE_PATH, 'rb') as photo:
             bot.send_photo(CHAT_ID, photo, caption=full_message, parse_mode='HTML')
         threading.Timer(150, send_feedback, args=(multiplier, 'mines')).start()
-        bot.send_message(message.chat.id, "Signal sent! 🎉 Check it! 🚀")
+        bot.send_message(message.chat.id, "Signal sent to group! 🎉 Check it! 🚀")
     except Exception as e:
         print(f"DEBUG: Error sending Mines signal: {e}")
         bot.send_message(message.chat.id, f"❌ Signal failed: {e}")
@@ -293,24 +277,21 @@ def handle_random_message(message):
     user_id = str(message.from_user.id)
     load_users()
     status = users.get(user_id, {'registered': False, 'deposited': False})
-    last_message = None
     
     if not status.get('registered', False):
-        last_message = "❓ Unrecognized input! 🎉 Register to begin! 📌 Click 📌 REGISTER or /start! 🌟"
+        bot.send_message(message.chat.id, "❓ Oops! Unrecognized input! 🎉 Register to begin! 📌")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('📌 REGISTER'))
+        bot.send_message(message.chat.id, "Click to start! 🌟", reply_markup=markup)
     elif not status.get('deposited', False):
-        last_message = "❓ Unrecognized input! 🎉 You’re registered! 💰 Deposit next! Click 💰 DEPOSIT or /start! 🌈"
+        bot.send_message(message.chat.id, "❓ Not sure? 🎉 You’re registered! 💰 Deposit next! 🌈")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.add(telebot.types.KeyboardButton('💰 DEPOSIT'))
+        bot.send_message(message.chat.id, "Deposit now! 🚀", reply_markup=markup)
     else:
-        last_message = "❓ Unrecognized input! 🎉 You’re all set! 🎮💎 Play now! Click 🎮 or 💎 or /start! 🌟"
+        bot.send_message(message.chat.id, "❓ Hmm? 🎉 You’re all set! 🎮💎 Play now! 🌟")
         markup = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
         markup.row(telebot.types.KeyboardButton('🎮 AVIATOR SIGNALS'), telebot.types.KeyboardButton('💎 MINES SIGNALS'))
-    
-    if last_message:
-        bot.send_message(message.chat.id, last_message, reply_markup=markup)
-    else:
-        bot.send_message(message.chat.id, "❓ Something went wrong! 🎉 Start over with /start! 🚀")
+        bot.send_message(message.chat.id, "Choose your game! 🚀", reply_markup=markup)
 
 bot.polling()
