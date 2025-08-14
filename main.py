@@ -198,4 +198,49 @@ def aviator_signal(message):
     if not (users.get(user_id, {}).get('registered', False) and users.get(user_id, {}).get('deposited', False)):
         bot.send_message(message.chat.id, "❌ Please complete registration and deposit first.")
         return
-    previous_multiplier = round(random.uniform(1.0
+    previous_multiplier = round(random.uniform(1.0, 1.87), 2)
+    current_multiplier = generate_crash_multiplier()
+    full_message = (
+        "🎯 Aviator Signal Confirmed 🎯\n"
+        f"📱 Site: <a href='https://1wvlau.life/?open=register&p=koqg'>Click Here To Play</a>\n\n"
+        f"👉 Enter after {previous_multiplier}x\n"
+        f"💰 Exit at {current_multiplier}x\n\n"
+        "🛟 Make up to 2 protections\n"
+        f"💸 <a href='https://1wvlau.life/?open=register&p=koqg'>Open Platform</a>"
+    )
+    try:
+        print(f"Sending Aviator signal to CHAT_ID {CHAT_ID}")
+        with open(IMAGE_PATH, 'rb') as photo:
+            bot.send_photo(CHAT_ID, photo, caption=full_message, parse_mode='HTML')
+        threading.Timer(180, send_feedback, args=(current_multiplier, 'aviator')).start()
+    except Exception as e:
+        print(f"Error sending Aviator signal: {e}")
+        bot.send_message(message.chat.id, f"Failed to send signal: {e}")
+
+@bot.message_handler(func=lambda m: m.text == '💎 MINES SIGNALS')
+def mines_signal(message):
+    user_id = str(message.from_user.id)
+    load_users()
+    if not (users.get(user_id, {}).get('registered', False) and users.get(user_id, {}).get('deposited', False)):
+        bot.send_message(message.chat.id, "❌ Please complete registration and deposit first.")
+        return
+    num_mines, pos_str, multiplier = generate_mines_signal()
+    full_message = (
+        "🎯 Mines Signal Confirmed 🎯\n"
+        f"📱 Site: <a href='https://1wvlau.life/?open=register&p=koqg'>Click Here To Play</a>\n\n"
+        f"Set Mines: {num_mines}\n"
+        f"Click Sequence: {pos_str}\n"
+        f"💰 Cash out at {multiplier}x\n\n"
+        "🛟 Make up to 2 protections\n"
+        f"💸 <a href='https://1wvlau.life/?open=register&p=koqg'>Open Platform</a>"
+    )
+    try:
+        print(f"Sending Mines signal to CHAT_ID {CHAT_ID}")
+        with open(IMAGE_PATH, 'rb') as photo:
+            bot.send_photo(CHAT_ID, photo, caption=full_message, parse_mode='HTML')
+        threading.Timer(150, send_feedback, args=(multiplier, 'mines')).start()
+    except Exception as e:
+        print(f"Error sending Mines signal: {e}")
+        bot.send_message(message.chat.id, f"Failed to send signal: {e}")
+
+bot.polling()
