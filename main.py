@@ -4,6 +4,7 @@ import random
 import time
 import threading
 import telebot
+import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from flask import Flask, request
 
@@ -57,7 +58,7 @@ PROMO_CODE = os.environ.get('PROMO_CODE', 'BETWIN190')
 USERS_FILE = os.environ.get('USERS_FILE', 'users.json')
 
 # Initialize bot
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(TOKEN, threaded=True, num_threads=4)
 users = {}
 
 # Image paths
@@ -93,9 +94,38 @@ def generate_mines_signal():
     multiplier = round(1.0 + num_clicks * 0.3 + random.uniform(0, 1), 2)
     return num_mines, pos_str, multiplier
 
+def safe_send_message(chat_id, text, max_retries=3, **kwargs):
+    """Send message with retry on connection errors"""
+    for attempt in range(max_retries):
+        try:
+            return bot.send_message(chat_id, text, **kwargs)
+        except (requests.exceptions.ConnectionError, telebot.apihelper.ApiException) as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff
+                print(f"Connection error: {e}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                print(f"Failed to send message after {max_retries} attempts: {e}")
+                raise
+
+def safe_send_photo(chat_id, photo_path, max_retries=3, **kwargs):
+    """Send photo with retry on connection errors"""
+    for attempt in range(max_retries):
+        try:
+            with open(photo_path, 'rb') as photo:
+                return bot.send_photo(chat_id, photo, **kwargs)
+        except (requests.exceptions.ConnectionError, telebot.apihelper.ApiException) as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff
+                print(f"Connection error: {e}. Retrying in {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                print(f"Failed to send photo after {max_retries} attempts: {e}")
+                raise
+
 def send_feedback(multiplier, game):
     try:
-        bot.send_message(CHAT_ID, f"✅ GREEN ({multiplier}x)")
+        safe_send_message(CHAT_ID, f"✅ GREEN ({multiplier}x)")
     except Exception as e:
         print(f"Feedback error: {e}")
 
@@ -132,14 +162,13 @@ def start(message):
         "📲 Choose your next step below 👇"
     )
     
-    with open(IMAGE_PATH, 'rb') as photo:
-        bot.send_photo(
-            message.chat.id, 
-            photo, 
-            caption=welcome_msg,
-            parse_mode='HTML',
-            reply_markup=main_menu_keyboard()
-        )
+    safe_send_photo(
+        message.chat.id, 
+        IMAGE_PATH,
+        caption=welcome_msg,
+        parse_mode='HTML',
+        reply_markup=main_menu_keyboard()
+    )
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
@@ -174,14 +203,13 @@ def handle_register(message, user_id):
         "⏳ After registering, tap '✅ CHECK REGISTRATION' below."
     )
     
-    with open(REG_IMAGE_PATH, 'rb') as photo:
-        bot.send_photo(
-            message.chat.id, 
-            photo, 
-            caption=reg_msg,
-            parse_mode='HTML',
-            reply_markup=markup
-        )
+    safe_send_photo(
+        message.chat.id, 
+        REG_IMAGE_PATH,
+        caption=reg_msg,
+        parse_mode='HTML',
+        reply_markup=markup
+    )
 
 def check_registered(message, user_id):
     if users.get(user_id, {}).get('registered', False):
@@ -191,7 +219,7 @@ def check_registered(message, user_id):
         )
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("💰 DEPOSIT NOW", callback_data="deposit"))
-        bot.send_message(
+        safe_send_message(
             message.chat.id, 
             success_msg, 
             parse_mode='HTML',
@@ -208,7 +236,7 @@ def check_registered(message, user_id):
         )
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("🔄 CHECK AGAIN", callback_data="check_reg"))
-        bot.send_message(
+        safe_send_message(
             message.chat.id, 
             error_msg, 
             parse_mode='HTML',
@@ -217,7 +245,7 @@ def check_registered(message, user_id):
 
 def handle_deposit(message, user_id):
     if not users.get(user_id, {}).get('registered', False):
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "❌ You need to register first. 📌",
             reply_markup=InlineKeyboardMarkup().add(
@@ -239,7 +267,7 @@ def handle_deposit(message, user_id):
         "⏳ After depositing, tap '🔍 CHECK DEPOSIT' below."
     )
     
-    bot.send_message(
+    safe_send_message(
         message.chat.id, 
         dep_msg, 
         parse_mode='HTML',
@@ -248,7 +276,7 @@ def handle_deposit(message, user_id):
 
 def check_deposited(message, user_id):
     if not users.get(user_id, {}).get('registered', False):
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "❌ You need to register first. 📌",
             reply_markup=InlineKeyboardMarkup().add(
@@ -264,7 +292,7 @@ def check_deposited(message, user_id):
             InlineKeyboardButton("🎮 AVIATOR SIGNALS", callback_data="aviator"),
             InlineKeyboardButton("💎 MINES SIGNALS", callback_data="mines")
         )
-        bot.send_message(
+        safe_send_message(
             message.chat.id, 
             success_msg, 
             parse_mode='HTML',
@@ -278,7 +306,7 @@ def check_deposited(message, user_id):
         )
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("🔄 CHECK AGAIN", callback_data="check_dep"))
-        bot.send_message(
+        safe_send_message(
             message.chat.id, 
             error_msg, 
             parse_mode='HTML',
@@ -288,7 +316,7 @@ def check_deposited(message, user_id):
 def aviator_signal(message, user_id):
     if not (users.get(user_id, {}).get('registered', False) and 
            users.get(user_id, {}).get('deposited', False)):
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "❌ Complete registration and deposit first!",
             reply_markup=InlineKeyboardMarkup(row_width=2).add(
@@ -309,23 +337,23 @@ def aviator_signal(message, user_id):
             "🛡️ Up to 2 protections\n"
             f"💸 Platform: [1win]({AFF_LINK_BASE}{user_id})"
         )
-        bot.send_message(
+        safe_send_message(
             CHAT_ID, 
             full_message, 
             parse_mode='Markdown'
         )
         threading.Timer(180, send_feedback, args=(current_multiplier, 'aviator')).start()
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "✅ Signal sent to group! Check it now!"
         )
     except Exception as e:
-        bot.send_message(message.chat.id, f"❌ Signal failed: {e}")
+        safe_send_message(message.chat.id, f"❌ Signal failed: {e}")
 
 def mines_signal(message, user_id):
     if not (users.get(user_id, {}).get('registered', False) and 
            users.get(user_id, {}).get('deposited', False)):
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "❌ Complete registration and deposit first!",
             reply_markup=InlineKeyboardMarkup(row_width=2).add(
@@ -346,18 +374,18 @@ def mines_signal(message, user_id):
             "🛡️ Up to 2 protections\n"
             f"💸 Platform: [1win]({AFF_LINK_BASE}{user_id})"
         )
-        bot.send_message(
+        safe_send_message(
             CHAT_ID, 
             full_message, 
             parse_mode='Markdown'
         )
         threading.Timer(150, send_feedback, args=(multiplier, 'mines')).start()
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "✅ Signal sent to group! Check it now!"
         )
     except Exception as e:
-        bot.send_message(message.chat.id, f"❌ Signal failed: {e}")
+        safe_send_message(message.chat.id, f"❌ Signal failed: {e}")
 
 @bot.message_handler(func=lambda message: True)
 def handle_other_messages(message):
@@ -365,7 +393,7 @@ def handle_other_messages(message):
     load_users()
     
     if not users.get(user_id, {}).get('registered', False):
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "📌 Please register first to get started 👇",
             reply_markup=InlineKeyboardMarkup().add(
@@ -373,7 +401,7 @@ def handle_other_messages(message):
             )
         )
     elif not users.get(user_id, {}).get('deposited', False):
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "💰 You're registered, but haven't deposited yet. Deposit now to unlock signals! 👇",
             reply_markup=InlineKeyboardMarkup().add(
@@ -381,7 +409,7 @@ def handle_other_messages(message):
             )
         )
     else:
-        bot.send_message(
+        safe_send_message(
             message.chat.id,
             "🎮 You're all set! Choose a game to get your next signal! 👇",
             reply_markup=InlineKeyboardMarkup(row_width=2).add(
@@ -390,4 +418,21 @@ def handle_other_messages(message):
             )
         )
 
-bot.polling()
+# Add error handler for connection issues
+@bot.message_handler(func=lambda message: True, content_types=['text'])
+def handle_errors(message):
+    try:
+        bot.reply_to(message, "Processing your request...")
+    except (requests.exceptions.ConnectionError, telebot.apihelper.ApiException) as e:
+        print(f"Connection error handled: {e}")
+        # Implement retry logic here if needed
+
+if __name__ == '__main__':
+    while True:
+        try:
+            print("Starting bot polling...")
+            bot.polling(none_stop=True, timeout=60)
+        except Exception as e:
+            print(f"Bot crashed with error: {e}")
+            print("Restarting in 10 seconds...")
+            time.sleep(10)
