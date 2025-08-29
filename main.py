@@ -5,9 +5,8 @@ import time
 import threading
 import telebot
 import requests
-import atexit
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from flask import Flask, request
+from flask import Flask, request, Response
 from telebot.apihelper import ApiTelegramException
 
 # Import and start keep_alive
@@ -16,55 +15,26 @@ keep_alive()
 
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return "Bot is operational and ready"
-
-@app.route('/postback', methods=['GET', 'POST'])
-def postback():
-    click_id = request.args.get('click_id')
-    event_id = request.args.get('status')
-    date = request.args.get('payout')
-    
-    if click_id and event_id:
-        try:
-            user_id = str(click_id)
-            load_users()
-            if user_id not in users:
-                users[user_id] = {'registered': False, 'deposited': False}
-            
-            event_lower = event_id.lower()
-            if event_lower in ['reg', 'registration', 'reg_complete', 'register', 'signup', 'lead', 'ftd']:
-                users[user_id]['registered'] = True
-            elif event_lower in ['dep', 'deposit', 'first_deposit', 'payout'] and date:
-                users[user_id]['deposited'] = True
-            elif len(event_id) == 36 and '-' in event_id and date:
-                users[user_id]['registered'] = True
-            
-            save_users()
-        except Exception as e:
-            print(f"Postback processing error: {e}")
-    return 'OK', 200
-
-def run_flask():
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
-
 # Configuration from environment variables
 TOKEN = os.environ['TOKEN']
 CHAT_ID = int(os.environ['CHAT_ID'])
 AFF_LINK_BASE = os.environ['AFF_LINK_BASE']
 PROMO_CODE = os.environ.get('PROMO_CODE', 'BETWIN190')
 USERS_FILE = os.environ.get('USERS_FILE', 'users.json')
+RENDER_EXTERNAL_URL = os.environ.get('RENDER_EXTERNAL_URL', '')  # Get Render URL
+WEBHOOK_PORT = int(os.environ.get('PORT', 8080))
 
-# Initialize bot with a unique session
-bot = telebot.TeleBot(TOKEN, num_threads=5)
+# Initialize bot
+bot = telebot.TeleBot(TOKEN)
 users = {}
-is_polling = False
 
 # Image paths
 IMAGE_PATH = '1.jpg'
 REG_IMAGE_PATH = '2win.jpg'
+
+# Webhook setup
+WEBHOOK_URL_BASE = f"https://{RENDER_EXTERNAL_URL}" if RENDER_EXTERNAL_URL else None
+WEBHOOK_URL_PATH = f"/webhook/{TOKEN}"
 
 def load_users():
     global users
@@ -104,10 +74,6 @@ def safe_send_message(chat_id, text, max_retries=3, **kwargs):
             if "bot was blocked by the user" in str(e):
                 print(f"User {chat_id} blocked the bot. Skipping...")
                 return None
-            elif "terminated by other getUpdates request" in str(e):
-                print("Another instance is polling. Stopping this instance...")
-                stop_polling()
-                return None
             elif attempt < max_retries - 1:
                 wait_time = 2 ** attempt
                 print(f"Connection error: {e}. Retrying in {wait_time}s...")
@@ -126,10 +92,6 @@ def safe_send_photo(chat_id, photo_path, max_retries=3, **kwargs):
             if "bot was blocked by the user" in str(e):
                 print(f"User {chat_id} blocked the bot. Skipping...")
                 return None
-            elif "terminated by other getUpdates request" in str(e):
-                print("Another instance is polling. Stopping this instance...")
-                stop_polling()
-                return None
             elif attempt < max_retries - 1:
                 wait_time = 2 ** attempt
                 print(f"Connection error: {e}. Retrying in {wait_time}s...")
@@ -144,36 +106,6 @@ def send_feedback(multiplier, game):
     except Exception as e:
         print(f"Feedback error: {e}")
 
-def stop_polling():
-    global is_polling
-    is_polling = False
-    try:
-        bot.stop_polling()
-        print("Polling stopped successfully")
-    except Exception as e:
-        print(f"Error stopping polling: {e}")
-
-def start_polling():
-    global is_polling
-    if is_polling:
-        print("Polling is already active")
-        return
-    
-    is_polling = True
-    try:
-        print("Starting bot polling...")
-        bot.polling(none_stop=True, timeout=30, interval=1)
-    except ApiTelegramException as e:
-        if "terminated by other getUpdates request" in str(e):
-            print("Another instance is already polling. This instance will stop.")
-            is_polling = False
-        else:
-            print(f"ApiTelegramException: {e}")
-            is_polling = False
-    except Exception as e:
-        print(f"Unexpected error in polling: {e}")
-        is_polling = False
-
 # ============== CLEAN UI WITH INLINE KEYBOARDS ==============
 
 def main_menu_keyboard():
@@ -185,6 +117,46 @@ def main_menu_keyboard():
         InlineKeyboardButton("💎 MINES", callback_data="mines")
     )
     return markup
+
+@app.route('/')
+def home():
+    return "Bot is operational and ready"
+
+@app.route('/postback', methods=['GET', 'POST'])
+def postback():
+    click_id = request.args.get('click_id')
+    event_id = request.args.get('status')
+    date = request.args.get('payout')
+    
+    if click_id and event_id:
+        try:
+            user_id = str(click_id)
+            load_users()
+            if user_id not in users:
+                users[user_id] = {'registered': False, 'deposited': False}
+            
+            event_lower = event_id.lower()
+            if event_lower in ['reg', 'registration', 'reg_complete', 'register', 'signup', 'lead', 'ftd']:
+                users[user_id]['registered'] = True
+            elif event_lower in ['dep', 'deposit', 'first_deposit', 'payout'] and date:
+                users[user_id]['deposited'] = True
+            elif len(event_id) == 36 and '-' in event_id and date:
+                users[user_id]['registered'] = True
+            
+            save_users()
+        except Exception as e:
+            print(f"Postback processing error: {e}")
+    return 'OK', 200
+
+@app.route(WEBHOOK_URL_PATH, methods=['POST'])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        json_string = request.get_data().decode('utf-8')
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return ''
+    else:
+        return Response(status=403)
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -484,23 +456,31 @@ def handle_other_messages(message):
     except Exception as e:
         print(f"Error in handle_other_messages: {e}")
 
-# Register cleanup function
-atexit.register(stop_polling)
+# Remove webhook on shutdown
+import atexit
+@atexit.register
+def remove_webhook():
+    try:
+        bot.remove_webhook()
+        print("Webhook removed successfully")
+    except Exception as e:
+        print(f"Error removing webhook: {e}")
 
 if __name__ == '__main__':
-    # Start Flask in a separate thread
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    
-    # Start bot polling with error handling
-    while True:
+    # Set up webhook
+    if WEBHOOK_URL_BASE:
         try:
-            if not is_polling:
-                start_polling()
-            else:
-                print("Polling is already active, waiting...")
-                time.sleep(10)
+            bot.remove_webhook()
+            time.sleep(1)
+            bot.set_webhook(url=WEBHOOK_URL_BASE + WEBHOOK_URL_PATH)
+            print(f"Webhook set to: {WEBHOOK_URL_BASE + WEBHOOK_URL_PATH}")
         except Exception as e:
-            print(f"Unexpected error in main loop: {e}")
-            time.sleep(10)
+            print(f"Error setting webhook: {e}")
+            # Fall back to polling if webhook fails
+            print("Falling back to polling...")
+            bot.remove_webhook()
+            time.sleep(1)
+            bot.polling(none_stop=True, timeout=30)
+    else:
+        print("No webhook URL found, using polling...")
+        bot.polling(none_stop=True, timeout=30)
